@@ -71,6 +71,8 @@ type
   TJvDockConjoinHostForm = class;
   TJvDockTabHostForm = class;
 
+  TJvDockControlClass = class of TJvDockBaseControl;
+
   TJvDockSplitter = class(TJvDockCustomPanelSplitter)
   private
     FDockServer: TJvDockServer;
@@ -821,7 +823,7 @@ procedure LoadDockTreeFromFile(FileName: string);
 procedure SaveDockTreeToReg(ARootKey: DWORD; RegPatch: string);
 procedure LoadDockTreeFromReg(ARootKey: DWORD; RegPatch: string);
 
-function FindDockBaseControl(Client: TControl): TJvDockBaseControl;
+function FindDockBaseControl(Client: TControl; DockControlClass: TJvDockControlClass = nil): TJvDockBaseControl;
 function FindDockClient(Client: TControl): TJvDockClient;
 function FindDockServer(Client: TControl): TJvDockServer;
 
@@ -1172,14 +1174,16 @@ begin
   end;
 end;
 
-function FindDockBaseControl(Client: TControl): TJvDockBaseControl;
+function FindDockBaseControl(Client: TControl; DockControlClass: TJvDockControlClass): TJvDockBaseControl;
 var
   I: Integer;
 begin
+  if DockControlClass = nil then
+    DockControlClass := TJvDockBaseControl;
   Result := nil;
   if Client <> nil then
     for I := 0 to Client.ComponentCount - 1 do
-      if Client.Components[I] is TJvDockBaseControl then
+      if Client.Components[I] is DockControlClass then
       begin
         Result := TJvDockBaseControl(Client.Components[I]);
         Break;
@@ -1187,25 +1191,13 @@ begin
 end;
 
 function FindDockClient(Client: TControl): TJvDockClient;
-var
-  ADockControl: TJvDockBaseControl;
 begin
-  ADockControl := FindDockBaseControl(Client);
-  if ADockControl is TJvDockClient then
-    Result := TJvDockClient(ADockControl)
-  else
-    Result := nil;
+  Result := TJvDockClient(FindDockBaseControl(Client, TJvDockClient));
 end;
 
 function FindDockServer(Client: TControl): TJvDockServer;
-var
-  ADockControl: TJvDockBaseControl;
 begin
-  ADockControl := FindDockBaseControl(Client);
-  if ADockControl is TJvDockServer then
-    Result := TJvDockServer(ADockControl)
-  else
-    Result := nil;
+  Result := TJvDockServer(FindDockBaseControl(Client, TJvDockServer));
 end;
 
 procedure FreeAllDockableForm;

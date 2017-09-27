@@ -4026,6 +4026,9 @@ end;
 
 procedure TJvDockPanel.ResetPosition;
 begin
+  if csDestroying in ComponentState then
+    Exit;
+    
   case Align of
     alLeft:
       Left := GetClientAlignControlArea(Parent, Align) + 1;

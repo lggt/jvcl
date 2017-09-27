@@ -3132,7 +3132,7 @@ end;
 
 procedure TJvDockClient.DoFormOnClose(Sender: TObject; var Action: TCloseAction);
 begin
-  if Action = caHide then
+  if Action in [caHide, caFree] then
   begin
     HideDockForm(ParentForm);
     FParentVisible := True;

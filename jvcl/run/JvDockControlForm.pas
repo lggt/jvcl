@@ -1377,7 +1377,12 @@ begin
               Exit;
       Result := ADockClient.EachOtherDock;
       if Sender <> nil then
+      begin
         ADockClient := FindDockClient(Sender.Parent);
+        if ADockClient = nil then
+          ADockClient := FindDockClient(Sender);
+      end;
+
       if ADockClient <> nil then
         Result := Result and ADockClient.EachOtherDock;
 

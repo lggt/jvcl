@@ -1178,16 +1178,18 @@ function FindDockBaseControl(Client: TControl; DockControlClass: TJvDockControlC
 var
   I: Integer;
 begin
-  if DockControlClass = nil then
-    DockControlClass := TJvDockBaseControl;
-  Result := nil;
   if Client <> nil then
+  begin
+    if DockControlClass = nil then
+      DockControlClass := TJvDockBaseControl;
     for I := 0 to Client.ComponentCount - 1 do
       if Client.Components[I] is DockControlClass then
       begin
         Result := TJvDockBaseControl(Client.Components[I]);
-        Break;
+        Exit;
       end;
+  end;
+  Result := nil;
 end;
 
 function FindDockClient(Client: TControl): TJvDockClient;

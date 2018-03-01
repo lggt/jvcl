@@ -779,7 +779,7 @@ type
     property Action;
     property Align;
     property AutoSize;
-    property DialogKind: TDirDialogKind read FDialogKind write FDialogKind default dkVCL;
+    property DialogKind: TDirDialogKind read FDialogKind write FDialogKind default dkWin32;
     property DialogText: string read FDialogText write FDialogText;
     property DisplayLocalizedName: Boolean read FDisplayLocalizedName write SetDisplayLocalizedName default False;
     property AutoCompleteOptions;
@@ -1296,9 +1296,9 @@ var
   GDirImageIndexXP: TImageIndex = -1;
   GFileImageIndexXP: TImageIndex = -1;
   GDatePickerThemeDataAvailable: Integer = -1;
-  {$IFDEF HAS_UNIT_VCL_THEMES}
+  {$IFDEF HAS_UNIT_UXTHEME}
   GDatePickerThemeData: HTHEME;
-  {$ENDIF HAS_UNIT_VCL_THEMES}
+  {$ENDIF HAS_UNIT_UXTHEME}
   {$ENDIF JVCLThemesEnabled}
   GCoInitialized: Integer = 0;
 
@@ -1330,7 +1330,7 @@ const
 
 function IsDatePickerThemeDataAvailable: Boolean;
 begin
-  {$IFDEF HAS_UNIT_VCL_THEMES}
+  {$IFDEF HAS_UNIT_UXTHEME}
   if (GDatePickerThemeDataAvailable = -1) and StyleServices.Available and Assigned(OpenThemeData) then
   begin
     GDatePickerThemeData := OpenThemeData(Application.Handle, VSCLASS_DATEPICKER);
@@ -1342,7 +1342,7 @@ begin
   Result := (GDatePickerThemeDataAvailable = 1) and StyleServices.IsSystemStyle; // CustomStyles don't support the DatePicker theme
   {$ELSE}
   Result := False;
-  {$ENDIF ~HAS_UNIT_VCL_THEMES}
+  {$ENDIF ~HAS_UNIT_UXTHEME}
 end;
 {$ENDIF JVCLThemesEnabled}
 
@@ -1759,12 +1759,12 @@ type
 
 procedure TJvBtnWinControl.WMEraseBkgnd(var Message: TWMEraseBkgnd);
 begin
-  {$IFDEF HAS_UNIT_VCL_THEMES}
+  {$IFDEF HAS_UNIT_UXTHEME}
   if ((Owner as TJvCustomComboEdit).ImageKind in [ikDropDown, ikDatePicker]) and
      StyleServices.Enabled and not TJvCustomComboEdit(Owner).ButtonFlat then
     Message.Result := 1 // the button is alClient and paints everything, reduces flicker
   else
-  {$ENDIF HAS_UNIT_VCL_THEMES}
+  {$ENDIF HAS_UNIT_UXTHEME}
     inherited;
 end;
 
@@ -4407,80 +4407,119 @@ end;
 
 procedure TJvDirectoryEdit.PopupDropDown(DisableEdit: Boolean);
 var
-  Temp, Txt: string;
+  Dir, Txt: string;
   Action: Boolean;
   BrowseForFolder: TJvBrowseForFolderDialog;
+  {$IF declared(TFileOpenDialog)}
+  FileOpenDialog: TFileOpenDialog;
+  Options: TFileDialogOptions;
+  {$IFEND}
 begin
-  Temp := Directory;
+  Dir := Directory;
   Action := True;
-  DoBeforeDialog(Temp, Action);
+  DoBeforeDialog(Dir, Action);
   if not Action then
     Exit;
-  if Temp = '' then
+  if Dir = '' then
   begin
     if InitialDir <> '' then
-      Temp := InitialDir
+      Dir := InitialDir
     else
-      Temp := PathDelim;
+      Dir := PathDelim;
   end;
 
-  if not DirectoryExists(Temp) then
-    Temp := PathDelim;
+  if not DirectoryExists(Dir) then
+    Dir := PathDelim;
 
   case DialogKind of
     dkVCL:
       begin
         DisableSysErrors;
         try
-          Action := SelectDirectory(Temp, FOptions, Self.HelpContext);
+          Action := SelectDirectory(Dir, FOptions, Self.HelpContext);
         finally
           EnableSysErrors;
         end;
       end;
     dkWin32:
       begin
-        BrowseForFolder := TJvBrowseForFolderDialog.Create(Self);
-        try
-          BrowseForFolder.Options := DialogOptionsWin32;
-          BrowseForFolder.Directory := Temp;
-          BrowseForFolder.StatusText := DialogText;
-          Action := BrowseForFolder.Execute;
-          Temp := BrowseForFolder.Directory;
-        finally
-          BrowseForFolder.Free;
+        {$IF declared(TFileOpenDialog)}
+        if (odNewDialogStyle in DialogOptionsWin32) and JclCheckWinVersion(6, 0) and
+           ([odNoBelowDomain, odBrowseForComputer, odOnlyPrinters, odIncludeFiles, odIncludeUrls, odNoNewButtonFolder] * DialogOptionsWin32 = []) then
+        begin
+          FileOpenDialog := TFileOpenDialog.Create(nil);
+          try
+            Options := FileOpenDialog.Options;
+            Options := Options + [fdoPickFolders, fdoPathMustExist];
+            if odFileSystemDirectoryOnly in DialogOptionsWin32 then
+              Options := Options + [fdoForceFileSystem];
+            if not (odValidate in DialogOptionsWin32) then
+              Options := Options + [fdoNoTestFileCreate];
+            if odShareable in DialogOptionsWin32 then
+              Options := Options + [fdoShareAware];
+
+            FileOpenDialog.Options := Options;
+            FileOpenDialog.Title := DialogText;
+            FileOpenDialog.DefaultFolder := Dir;
+            if Parent <> nil then
+              Action := FileOpenDialog.Execute(Parent.Handle)
+            else if (Application.MainForm <> nil) and Application.MainForm.HandleAllocated then
+              Action := FileOpenDialog.Execute(Application.MainForm.Handle)
+            else
+              Action := FileOpenDialog.Execute(Application.Handle);
+
+            if Action then
+              Dir := FileOpenDialog.FileName;
+          finally
+            FileOpenDialog.Free;
+          end;
+        end
+        else
+        {$IFEND}
+        begin
+          BrowseForFolder := TJvBrowseForFolderDialog.Create(Self);
+          try
+            BrowseForFolder.Options := DialogOptionsWin32;
+            BrowseForFolder.Directory := Dir;
+            BrowseForFolder.StatusText := DialogText;
+            Action := BrowseForFolder.Execute;
+            Dir := BrowseForFolder.Directory;
+          finally
+            BrowseForFolder.Free;
+          end;
         end;
       end;
   end;
 
   if CanFocus then
     SetFocus;
-  DoAfterDialog(Temp, Action);
+  DoAfterDialog(Dir, Action);
   if Action then
   begin
     SelText := '';
     if (Text = '') or not MultipleDirs then
-      Txt := Temp
+      Txt := Dir
     else
-      Txt := Directory + PathSep + Temp;
+      Txt := Directory + PathSep + Dir;
     Text := Txt;
     FPhysicalDirectory := Txt; // Must be set after "Text:="
-    if (Temp <> '') and DirectoryExists(Temp) then
-      InitialDir := Temp;
+    if (Dir <> '') and DirectoryExists(Dir) then
+      InitialDir := Dir;
   end;
 end;
 
 procedure TJvDirectoryEdit.ReceptFileDir(const AFileName: string);
 var
-  Temp: string;
+  Dir: string;
 begin
   if FileExists(AFileName) then
-    Temp := StrEnsureNoSuffix(PathDelim, ExtractFilePath(AFileName))
+    Dir := StrEnsureNoSuffix(PathDelim, ExtractFilePath(AFileName))
   else
-    Temp := StrEnsureNoSuffix(PathDelim, AFileName);
+    Dir := StrEnsureNoSuffix(PathDelim, AFileName);
   if (Text = '') or not MultipleDirs then
-    Text := Temp
+    Text := Dir
   else
-    Text := Text + PathSep + Temp;
+    Text := Text + PathSep + Dir;
 end;
 
 //=== { TJvEditButton } ======================================================
@@ -4537,9 +4576,9 @@ end;
 procedure TJvEditButton.Paint;
 {$IFDEF JVCLThemesEnabled}
 var
-  {$IFDEF HAS_UNIT_VCL_THEMES}
+  {$IFDEF HAS_UNIT_UXTHEME}
   DrawState: TJvButtonState;
-  {$ENDIF HAS_UNIT_VCL_THEMES}
+  {$ENDIF HAS_UNIT_UXTHEME}
   ThemedState: TThemedComboBox;
   Details: TThemedElementDetails;
   R: TRect;
@@ -4550,7 +4589,7 @@ begin
   begin
     if FDrawThemedDatePickerBtn and IsDatePickerThemeDataAvailable then
     begin
-      {$IFDEF HAS_UNIT_VCL_THEMES}
+      {$IFDEF HAS_UNIT_UXTHEME}
       DrawState := FState;
       if FPopupVisible then
         DrawState := rbsDown;
@@ -4576,7 +4615,7 @@ begin
       if Width < DefDatePickerThemeButtonWidth then
         R.Left := R.Right - 15; // paint without the dropdown arrow
       DrawThemeBackground(GDatePickerThemeData, Canvas.Handle, Details.Part, Details.State, R, nil);
-      {$ENDIF HAS_UNIT_VCL_THEMES}
+      {$ENDIF HAS_UNIT_UXTHEME}
     end
     else
     if FDrawThemedDropDownBtn then
@@ -5370,10 +5409,10 @@ finalization
   FreeAndNil(GDateHook);
   FreeAndNil(GDefaultComboEditImagesList);
   {$IFDEF JVCLThemesEnabled}
-  {$IFDEF HAS_UNIT_VCL_THEMES}
+  {$IFDEF HAS_UNIT_UXTHEME}
   if (GDatePickerThemeData <> 0) and Assigned(CloseThemeData) then
     CloseThemeData(GDatePickerThemeData);
-  {$ENDIF HAS_UNIT_VCL_THEMES}
+  {$ENDIF HAS_UNIT_UXTHEME}
   {$ENDIF JVCLThemesEnabled}
   {$IFDEF UNITVERSIONING}
   UnregisterUnitVersion(HInstance);

@@ -64,7 +64,7 @@ the requires node of JvDBXXX.bpk !!! }
 
 { This define enables GIF image support. Deactivate this define
 if you are using another GIF image support library. }
-{$DEFINE USE_JV_GIF}
+{.$DEFINE USE_JV_GIF}
 
 { Activate this define if you do not want to use TGauge Borland sample
 component in TDBProgress component and FileUtil routines. In this case
@@ -89,7 +89,7 @@ OLE automation calls (for VCL only). }
 
 { This activates the unit versioning system where each JVCL unit gets a record that defines
 which revision, date and filename the unit has. }
-{.$DEFINE UNITVERSIONING}
+{$DEFINE UNITVERSIONING}
 
 // *********************************************************************
 // Start Definition of Third Party Components

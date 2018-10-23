@@ -2343,7 +2343,7 @@ begin
   Z := FindControlZone(Control, True);
   if Z <> nil then
   begin
-    if Z = FReplacementZone then
+    if (Z = FReplacementZone) or (csDestroying in Control.ComponentState) then
       Z.ChildControl := nil
     else
     begin

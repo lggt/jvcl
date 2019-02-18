@@ -1169,7 +1169,7 @@ uses
 type
   TCustomMaskEditAccessPrivate = class(TCustomEdit)
   protected
-    {$IFDEF RTL330_UP}
+    {$IFDEF RTL340_UP}
       {$MESSAGE WARN 'Check if Vcl.Mask.TCustomMaskEdit still has the exact same fields and adjust the IFDEF'}
     {$ENDIF}
     // Do not remove these fields, although they are not used.
@@ -1317,7 +1317,6 @@ begin
 end;
 
 {$IFDEF JVCLThemesEnabled}
-  {$IFNDEF HAS_UNIT_UXTHEME}
 const
   // Vista+
   VSCLASS_DATEPICKER = 'DATEPICKER';
@@ -1326,7 +1325,6 @@ const
   DPSCBR_HOT      = 2;
   DPSCBR_PRESSED  = 3;
   DPSCBR_DISABLED = 4;
-  {$ENDIF ~HAS_UNIT_UXTHEME}
 
 function IsDatePickerThemeDataAvailable: Boolean;
 begin
